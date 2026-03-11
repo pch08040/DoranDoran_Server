@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException, Unauthorize
 import { JwtService } from '@nestjs/jwt';
 import { UsersModel } from 'src/users/entities/users.entity';
 import { ConfigService } from "@nestjs/config";
-import { ENV_JWT_SECRET_KEY } from 'src/common/const/env-keys.const';
+import { ACCESS_TOKEN, ENV_JWT_SECRET_KEY, REFRESH_TOKEN } from 'src/common/const/env-keys.const';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { UsersService } from 'src/users/users.service';
@@ -121,7 +121,7 @@ export class AuthService {
     }
 
 
-    // 1) registerWithPhoneNumber
+    // 1) sendRegisterCode
     // - 6자리 랜덤 숫자(인증번호)를 만들고 Redis에 "키(전화번호):값(인증번호)"형태로 저장
     //   저장완료 메세지 발송 `${phoneNumber}번호로 인증번호(${code})가 발송되었습니다`
     async sendRegisterCode(phoneNumber: string) {
@@ -174,10 +174,11 @@ export class AuthService {
     // - signToken에 필요한 값을 넘겨서 accessToken과 refreshToken을 반환하는 로직
     loginUser(user: UsersModel) {
         return {
-            accessToken: this.signToken(user, false),
-            refreshToken: this.signToken(user, true),
+            user: user,
+            [ACCESS_TOKEN]: this.signToken(user, false),
+            [REFRESH_TOKEN]: this.signToken(user, true),
             // 임시유저인지 확인, 화면 분기 생성용 코드
-            isProfileCompleted: user.isProfileCompleted,
+            // isProfileCompleted: user.isProfileCompleted,
         }
     }
 

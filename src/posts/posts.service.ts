@@ -115,7 +115,6 @@ export class PostsService {
                 id: authorId,
             },
             ...postDto,
-            images: [],
         });
 
         const newPost = await this.postsRepository.save(post);

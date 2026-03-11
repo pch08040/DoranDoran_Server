@@ -12,20 +12,24 @@ import { PostsModule } from './posts/posts.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 import { AccessTokenGuard } from './auth/guard/bearer-token.guard';
-import { UsersModel } from './users/entities/users.entity';
-import { PostsModel } from './posts/entity/posts.entity';
+// 서버에게 특정 폴더를 "있는 그대로 보여주는 창고"라고 지정
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { PUBLIC_FOLDER_PATH } from './common/const/path.const';
 
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      // 1. rootPath: 실제 사진이 들어있는 '컴퓨터상의 물리적 주소'
+      rootPath: PUBLIC_FOLDER_PATH,
+      // 2. serveRoot: 유저가 브라우저나 플러터에서 접근할 때 사용하는 '가상 주소'
+      serveRoot: '/public',
+    }),
     ConfigModule.forRoot({
       envFilePath: '.env', // 읽어올 파일 경로
       isGlobal: true, // 프로젝트 전체에서 환경변수 사용 가능하게 설정
     }),
-    // RedisModule.forRoot({
-    //   type: 'single',
-    //   url: 'redis://localhost:6379',
-    // }),
     CacheModule.registerAsync({
       isGlobal: true,
       useFactory: async () => ({
@@ -51,7 +55,7 @@ import { PostsModel } from './posts/entity/posts.entity';
       database: process.env[ENV_DB_DATABASE_KEY],
       autoLoadEntities: true,
       entities: [],
-      synchronize: true, // 엔티티와 DB 테이블 자동 동기화
+      synchronize: true, // 엔티티와 DB 테이블 자동 동기화(테스트 환경에서만 사용 권장)
     }),
   ],
   controllers: [AppController],

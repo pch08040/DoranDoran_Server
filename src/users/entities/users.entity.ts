@@ -4,7 +4,7 @@ import { BaseModel } from "src/common/entity/base.entity";
 import { emailValidationMessage } from "src/common/validation-message/email-validation.message";
 import { lengthValidationMessage } from "src/common/validation-message/length-validation.message";
 import { stringValidationMessage } from "src/common/validation-message/string-validation.message";
-import { Column, Entity, OneToMany } from "typeorm";
+import { Column, Entity, OneToMany, OneToOne } from "typeorm";
 import { RolesEnum } from "../const/roles.const";
 import { GenderEnum } from "../const/gender.const";
 import { PostsModel } from "src/posts/entity/posts.entity";
@@ -16,13 +16,16 @@ export class UsersModel extends BaseModel {
     @Column({
         unique: true,
     })
-    @IsPhoneNumber('KR')
+    @IsPhoneNumber('KR', {
+        message: '정확한 번호를 입력해주세요!',
+    })
     phoneNumber: string;
 
     // 선택된 첫 번째 이름
-    @Column({ length: 10,
+    @Column({
+        length: 10,
         nullable: true,
-     })
+    })
     @IsString({
         message: stringValidationMessage,
     })
@@ -75,15 +78,18 @@ export class UsersModel extends BaseModel {
     // 프로필 사진
     @Column(
         'simple-array',
-        { nullable: true })
-    profileImages: string[];
+        {
+            nullable: false,
+            default: "/public/users/basicProfile.png",
+        })
+    profileImages: string[] = ["/public/users/basicProfile.png"];
 
     // 신고된 횟수
-    @Column({default: 0})
+    @Column({ default: 0 })
     reportCount: number;
 
     // 차단된 유저 아이디
-    @Column('simple-array',{nullable: true})
+    @Column('simple-array', { nullable: true })
     @IsString({
         message: stringValidationMessage,
     })

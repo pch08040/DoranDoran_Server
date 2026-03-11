@@ -7,6 +7,8 @@ import { join } from 'path';
 async function bootstrap() {
   // app.useStaticAssets 사용을 위해 Express용 기능 부여
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.enableCors(); // 모든 요청 허용 (테스트용)
+
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
     transformOptions:{
@@ -21,6 +23,35 @@ async function bootstrap() {
 
   // 'public' 폴더 외부 공개
   app.useStaticAssets(join(__dirname, '..', 'public'));
-  await app.listen(process.env.PORT ?? 3000);
+  const port = await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
+
+// async function bootstrap() {
+//   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+//   // 1. [위치 이동] CORS 설정을 listen보다 위로 올렸습니다.
+//   // 이게 아래에 있으면 시뮬레이터(외부 요청)가 거절당합니다.
+//   app.enableCors();
+
+//   app.useGlobalPipes(new ValidationPipe({
+//     transform: true,
+//     transformOptions: {
+//       enableImplicitConversion: true
+//     },
+//     whitelist: true,
+//     forbidNonWhitelisted: true,
+//   }));
+
+//   // 'public' 폴더 외부 공개
+//   app.useStaticAssets(join(__dirname, '..', 'public'));
+
+//   // 2. [수정] 포트 번호 뒤에 '0.0.0.0'을 붙여서 로컬 네트워크 접속을 확실히 허용합니다.
+//   const port = process.env.PORT ?? 3000;
+//   await app.listen(port, '0.0.0.0');
+
+//   console.log(`🚀 서버가 http://localhost:${port} 에서 돌아가는 중입니다!`);
+// }
+
+// // 3. [유지] 이 함수를 호출해야 앱이 켜집니다!
+// bootstrap();

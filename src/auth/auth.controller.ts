@@ -6,6 +6,7 @@ import { AccessTokenGuard, RefreshTokenGuard } from './guard/bearer-token.guard'
 import { UpdateProfileDto } from 'src/users/dto/update-profile.dto';
 import { UsersModel } from 'src/users/entities/users.entity';
 import { User } from 'src/users/decorator/user.decorator';
+import { RegisterUserDto } from './dto/register-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -38,12 +39,12 @@ export class AuthController {
   // 인증번호 발송 요청(인증번호 받기 버튼)
   @Post('postSendRegisterCode')
   @IsPublic()
-  postSendRegisterCode(@Body('phoneNumber') phoneNumber: string) {
-    return this.authService.sendRegisterCode(phoneNumber);
+  postSendRegisterCode(@Body() dto: RegisterUserDto) {
+    return this.authService.sendRegisterCode(dto.phoneNumber);
   }
 
   // 인증번호 인증 & 토큰발급 & 임시유저 저장
-  @Post('sign/postVerificationCode')
+  @Post('postVerificationCode')
   @IsPublic()
   postVerificationCode(
     @Body('phoneNumber') phoneNumber: string,
@@ -53,12 +54,11 @@ export class AuthController {
   }
 
   // 임시유저 프로필 설정까지 완료
-  @Post('sign/completedSaveProfile')
+  @Post('completedSaveProfile')
   // 토큰이 발급된 임시 유저만 프로필 설정을 완료할 수 있음
   @UseGuards(AccessTokenGuard)
   completedSaveProfile(
     @User() user: UsersModel,
-    // @Req() req: any,
     @Body() userData: UpdateProfileDto) {
     return this.authService.completedSaveProfile(user.id, userData);
   }

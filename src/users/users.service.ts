@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UsersModel } from './entities/users.entity';
 import { Repository } from 'typeorm';
@@ -50,6 +50,17 @@ export class UsersService {
         // 유저 나머지 정보를 받고 넣으려는데 임시유저 정보가 서버에 없다고 주장하면
         if (!existingUser) {
             throw new NotFoundException('인증된 정보를 찾을 수 없습니다. 다시 인증해주세요.')
+        }
+
+        // 필수 유저 정보 확인
+        const requiredFields = ['firstName', 'gender', 'age', 'area'];
+
+        const isAllFieldsPresent = requiredFields.every(field =>
+            userData[field] !== undefined && userData[field] !== null && userData[field] !== ''
+        );
+
+        if(!isAllFieldsPresent){
+            throw new BadRequestException('가입 완료를 위해 모든 정보를 입력해주세요!')
         }
 
         const updateUser = Object.assign(existingUser, {

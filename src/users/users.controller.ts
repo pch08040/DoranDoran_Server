@@ -15,6 +15,11 @@ export class UsersController {
   //   return this.usersService.getAllUsers();
   // }
 
+  @Get('me')
+  getMe(@User() user: UsersModel){
+    return user;
+  }
+
   @Get()
   @IsPublic()
   getPaginateUser(
