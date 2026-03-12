@@ -1,4 +1,4 @@
-import { Exclude } from "class-transformer";
+import { Exclude, Transform } from "class-transformer";
 import { IsEmail, IsOptional, IsPhoneNumber, IsString, Length, length } from "class-validator";
 import { BaseModel } from "src/common/entity/base.entity";
 import { emailValidationMessage } from "src/common/validation-message/email-validation.message";
@@ -8,6 +8,7 @@ import { Column, Entity, OneToMany, OneToOne } from "typeorm";
 import { RolesEnum } from "../const/roles.const";
 import { GenderEnum } from "../const/gender.const";
 import { PostsModel } from "src/posts/entity/posts.entity";
+import { ImageModel, ImageModelType } from "src/common/entity/image.entity";
 
 @Entity()
 export class UsersModel extends BaseModel {
@@ -76,14 +77,18 @@ export class UsersModel extends BaseModel {
     bio?: string;
 
     // 프로필 사진
-    @Column(
-        'simple-array',
-        {
-            nullable: false,
-            default: "/public/users/basicProfile.png",
-        })
-    profileImages: string[] = ["/public/users/basicProfile.png"];
-
+    @OneToMany(()=> ImageModel, (image) => image.user)
+    // 이미지가 없다면
+    @Transform(({value}) => {
+        if(!value || value.length === 0) {
+            return [{
+                path: '/public/users/basicProfile.png',
+                type: ImageModelType.USER_IMAGE,
+            }];
+        }
+    })
+    images: ImageModel[];
+    
     // 신고된 횟수
     @Column({ default: 0 })
     reportCount: number;

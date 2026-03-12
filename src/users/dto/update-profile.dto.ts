@@ -18,6 +18,7 @@ export class UpdateProfileDto {
   @IsEnum(GenderEnum)
   gender: GenderEnum;
 
+  @IsString({each: true})
   @IsOptional()
-  profileImages?: string[] = ['/img/basicProfile.png'];
+  images?: string[] = [];
 }

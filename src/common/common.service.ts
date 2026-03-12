@@ -1,14 +1,22 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { BasePaginationDto } from './dto/base-pagination.dto';
 import { FindManyOptions, FindOptionsOrder, FindOptionsWhere, Repository } from 'typeorm';
 import { BaseModel } from './entity/base.entity';
 import { FILTER_MAPPER } from './const/filter-mapper.const';
 import { ConfigService } from '@nestjs/config';
 import { ENV_HOST_KEY, ENV_PORT_KEY, ENV_PROTOCOL_KEY } from './const/env-keys.const';
+import { ImageModel, ImageModelType } from './entity/image.entity';
+import { POST_IMAGE_PATH, PUBLIC_FOLDER_PATH, TEMP_FOLDER_PATH, USERS_IMAGE_PATH } from './const/path.const';
+import { existsSync, promises, renameSync } from 'fs';
+import { basename, join } from 'path';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class CommonService {
     constructor(
+        @InjectRepository(ImageModel)
+        private readonly imageRepository: Repository<ImageModel>,
         private readonly configService: ConfigService,
     ) { }
 
@@ -146,7 +154,7 @@ export class CommonService {
         for (const [key, value] of Object.entries(dto)) {
             // key -> where__id__less_than
             // value -> 1
-            
+
             // content 같은 key의 값이 존재하지 않아도 조립해라! 
             if (value === undefined || value === null) {
                 continue;
@@ -259,5 +267,127 @@ export class CommonService {
         order[field] = value;
 
         return order;
+    }
+
+
+    // <이미지 업로드 로직>
+    async createImages(dto: {
+        fileName: string;
+        type: ImageModelType;
+        order: number;
+        userId?: number;
+        postId?: number;
+    }) {
+        // 1. 이미지가 저장될 실제 경로를 결정(유저용 or 포스트용)
+        // /{프로젝트의 위치}/public/users
+        const realPath = dto.type === ImageModelType.USER_IMAGE
+            ? USERS_IMAGE_PATH : POST_IMAGE_PATH;
+
+        // 2. 파일을 옮기는 로직 (temp => 실제 저장 폴더)
+        // await this.moveFile(dto.fileName, targetPath);
+
+        // 현재 이미지 파일 위치
+        const tempFilePath = join(TEMP_FOLDER_PATH, dto.fileName);
+
+        try {
+            await promises.access(tempFilePath);
+        } catch (e) {
+            throw new BadRequestException('존재하지 않는 파일 입니다.');
+        }
+
+        // 파일이 새로 갈 곳
+        const destPath = join(realPath, dto.fileName);
+
+        try {
+            await promises.rename(tempFilePath, destPath);
+        } catch (e) {
+            throw new InternalServerErrorException('파일 이동 중 에러가 발생했습니다.');
+        }
+
+        // renameSync(tempFilePath, destPath);
+
+        return await this.imageRepository.save({
+            path: dto.fileName, // 파일명 (uuid.png)
+            type: dto.type,     // 이미지 타입 (USER_IMAGE 등)
+            order: dto.order,   // 순서 (0, 1, 2)
+            // 관계 설정: id만 담긴 객체를 넘겨주면 TypeORM이 알아서 외래키를 맺어줘.
+            user: dto.userId ? { id: dto.userId } : undefined,
+            post: dto.postId ? { id: dto.postId } : undefined,
+        })
+    }
+
+    // 이미지 전체삭제 함수
+    async delteUserImages(userId: number) {
+        // 1. 해당 유저가 가진 모든 이미지를 DB에서 먼저 찾아옵니다.
+        const images = await this.imageRepository.find({
+            where: { user: { id: userId } },
+        });
+
+        // 2. 루프를 돌며 실제 파일 시스템에서 삭제합니다.
+        for (const image of images) {
+            // 기본 이미지는 파일 자체를 지우면 안 되므로 체크가 필요할 수 있음
+            if (image.path !== 'basicProfile.png') {
+                const filePath = join(USERS_IMAGE_PATH, image.path);
+                if (existsSync(filePath)) {
+                    await promises.unlink(filePath);
+                }
+            }
+        }
+
+        await this.imageRepository.delete({ user: { id: userId } });
+    }
+
+    async deleteImageById(imageId: number){
+        // 1. DB에서 해당 이미지 정보를 가져옵니다.
+        const image = await this.imageRepository.findOne({
+            where: {id: imageId}
+        });
+
+        if(!image){
+            throw new BadRequestException('존재하지 않는 이미지입니다.');
+        }
+
+        // 2. 파일 경로 설정 (타입에 따라 분기)
+        const rootPath = image.type === ImageModelType.USER_IMAGE
+        ? USERS_IMAGE_PATH : POST_IMAGE_PATH;
+
+        const filePath = join(rootPath, image.path);
+
+        // 3. 실제 파일 삭제(기본 프로필이 아닐 때만)
+        if(image.path !== 'basicProfile.png'){
+            try{
+                if(existsSync(filePath)){
+                    await promises.unlink(filePath);
+                }
+            }catch(e){
+                // 파일이 이미 없거나 삭제 실패해도 로그만 남기고 진행(DB 적합성이 더 중요)
+                console.log(`파일 삭제 실패 : ${filePath}`, e);
+            }
+        }
+
+        await this.imageRepository.delete(imageId);
+
+        return imageId;
+    }
+
+    // 오래된 이미지 파일 삭제
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    async cleanTempFolder() {
+        console.log('-- 임시 폴더 청소 시작--');
+
+        const files = await promises.readdir(TEMP_FOLDER_PATH);
+        const now = Date.now();
+
+        for (const file of files) {
+            const filePath = join(TEMP_FOLDER_PATH, file);
+            const stats = await promises.stat(filePath);
+
+            // 생성된 지 12시간이 지난 파일만 골라서 삭제
+            const hours12InMs = 12 * 60 * 60 * 1000;
+            if (now - stats.mtimeMs > hours12InMs) {
+                await promises.unlink(filePath);
+                console.log(`삭제된 파일: ${file}`);
+            }
+        }
     }
 }

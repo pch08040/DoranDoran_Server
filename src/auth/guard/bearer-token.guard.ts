@@ -10,9 +10,9 @@ export class BearerTokenGuard implements CanActivate {
         private readonly authService: AuthService,
         private readonly usersService: UsersService,
         private readonly reflector: Reflector
-    ){}
+    ) { }
 
-    async canActivate(context: ExecutionContext): Promise<boolean>{
+    async canActivate(context: ExecutionContext): Promise<boolean> {
 
         // 현재 요청이 로그인이 필요 없는(Public) 경로인지 확인
         // reflector.getAllAndOverride: 우선순위에 따라 값을 가져오되, 값이 발견되면 그 값을 쓰고 없으면 다음 순위로 넘어가라
@@ -71,40 +71,42 @@ export class BearerTokenGuard implements CanActivate {
     }
 }
 
-    @Injectable()
-    export class AccessTokenGuard extends BearerTokenGuard {
-        async canActivate(context: ExecutionContext): Promise<boolean> {
-            await super.canActivate(context);
+@Injectable()
+export class AccessTokenGuard extends BearerTokenGuard {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+        await super.canActivate(context);
 
-            const req = context.switchToHttp().getRequest();
+        const req = context.switchToHttp().getRequest();
+        console.log('--- Header Check ---');
+        console.log(req.headers['authorization']);
 
-            if(req.isRoutePublic){
-                return true;
-            }
-
-            if(req.tokenType !== 'access'){
-                throw new UnauthorizedException('Access Token이 아닙니다.')
-            }
-
+        if (req.isRoutePublic) {
             return true;
         }
+
+        if (req.tokenType !== 'access') {
+            throw new UnauthorizedException('Access Token이 아닙니다.')
+        }
+
+        return true;
     }
+}
 
-    @Injectable()
-    export class RefreshTokenGuard extends BearerTokenGuard{
-        async canActivate(context: ExecutionContext): Promise<boolean> {
-            await super.canActivate(context);
+@Injectable()
+export class RefreshTokenGuard extends BearerTokenGuard {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+        await super.canActivate(context);
 
-            const req = context.switchToHttp().getRequest();
+        const req = context.switchToHttp().getRequest();
 
-            if(req.isRoutePublic){
-                return true;
-            }
-
-            if(req.tokenType !== 'refresh'){
-                throw new UnauthorizedException('Refresh Token이 아닙니다.');
-            }
-
+        if (req.isRoutePublic) {
             return true;
         }
+
+        if (req.tokenType !== 'refresh') {
+            throw new UnauthorizedException('Refresh Token이 아닙니다.');
+        }
+
+        return true;
     }
+}

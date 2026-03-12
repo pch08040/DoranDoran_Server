@@ -10,6 +10,7 @@ async function bootstrap() {
   app.enableCors(); // 모든 요청 허용 (테스트용)
 
   app.useGlobalPipes(new ValidationPipe({
+    // DTO의 타입을 자동으로 변환 (String => Number 등)
     transform: true,
     transformOptions:{
       // 이걸 사용하면 @Type(()=> Number) 다시 안쓰고 @IsNumber()이 데코레이션을 인식해서 자동으로 타입 바꿔줌

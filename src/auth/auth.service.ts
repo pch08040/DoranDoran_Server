@@ -8,6 +8,9 @@ import type { Cache } from 'cache-manager';
 import { UsersService } from 'src/users/users.service';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { UpdateProfileDto } from 'src/users/dto/update-profile.dto';
+import { ImageModelType } from 'src/common/entity/image.entity';
+import { CommonService } from 'src/common/common.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +19,7 @@ export class AuthService {
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
+        private readonly commonService: CommonService,
     ) {
 
     }
@@ -204,8 +208,20 @@ export class AuthService {
     //   isProfileCompleted: false일때 화면을 띄움
     //   서버에선 가입완료에 필요한 필수 유저 정보를 받은 뒤 프로필을 DB에 저장하고
     //   isProfileCompleted: true로 바꾼뒤 앱의 초기 "친구찾기" 화면으로 보냄(뒤로가기를 눌러도 기존 화면들은 스택에서 지워둠)
-    async completedSaveProfile(userId: number, userData: Partial<UsersModel>) {
-        const newUser = await this.usersService.updateProfile(userId, userData);
+    async completedSaveProfile(userId: number, userData: UpdateProfileDto) {
+        const { images, ...userRest } = userData;
+        const newUser = await this.usersService.updateProfile(userId, userRest);
+
+        if(images && images.length > 0){
+            for(let i = 0; i<images.length; i++){
+                await this.commonService.createImages({
+                    fileName: images[i],
+                    type: ImageModelType.USER_IMAGE,
+                    order: i,
+                    userId: userId,
+                });
+            }
+        }
 
         return newUser
     }

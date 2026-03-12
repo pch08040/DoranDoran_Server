@@ -14,16 +14,19 @@ import { redisStore } from 'cache-manager-redis-yet';
 import { AccessTokenGuard } from './auth/guard/bearer-token.guard';
 // 서버에게 특정 폴더를 "있는 그대로 보여주는 창고"라고 지정
 import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
 import { PUBLIC_FOLDER_PATH } from './common/const/path.const';
+import { ScheduleModule } from '@nestjs/schedule';
 
 
 @Module({
   imports: [
+    // 오래된 임시 이미지 자동 삭제
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       // 1. rootPath: 실제 사진이 들어있는 '컴퓨터상의 물리적 주소'
       rootPath: PUBLIC_FOLDER_PATH,
       // 2. serveRoot: 유저가 브라우저나 플러터에서 접근할 때 사용하는 '가상 주소'
+      // 그냥 앞에 /public 이라고 붙여서 들어오는 요청은 저 폴더에서 찾아준다는 약속
       serveRoot: '/public',
     }),
     ConfigModule.forRoot({
