@@ -5,6 +5,7 @@ import { PostsModel } from './entity/posts.entity';
 import { FindOptionsWhere, In, LessThan, MoreThan, Repository } from 'typeorm';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CommonService } from 'src/common/common.service';
+import { ImageModelType } from 'src/common/entity/image.entity';
 
 @Injectable()
 export class PostsService {
@@ -110,15 +111,45 @@ export class PostsService {
 
     // 포스트 생성
     async createPost(authorId: number, postDto: CreatePostDto) {
+        // const post = this.postsRepository.create({
+        //     author: {
+        //         id: authorId,
+        //     },
+        //     ...postDto,
+        // });
+
+        // const newPost = await this.postsRepository.save(post);
+
+        // return newPost;
+
+        // 1. DTO에서 이미지 파일명 배열과 나머지(content 등)를 분리합니다.
+        const { images, ...postRest } = postDto;
+
+        // 2. 포스트 본체만 먼저 생성합니다. 
+        // 이제 images가 없으므로 타입 에러가 나지 않습니다.
         const post = this.postsRepository.create({
             author: {
                 id: authorId,
             },
-            ...postDto,
+            ...postRest,
         });
 
+        // 3. 포스트를 먼저 저장해서 postId를 확보합니다.
         const newPost = await this.postsRepository.save(post);
 
+        // 4. 이미지가 있다면 CommonService를 이용해 처리합니다.
+        if (images && images.length > 0) {
+            for (let i = 0; i < images.length; i++) {
+                await this.commonService.createImages({
+                    fileName: images[i],
+                    type: ImageModelType.POST_IMAGE, // 이번엔 포스트 이미지 타입!
+                    order: i,
+                    postId: newPost.id, // 방금 생성된 포스트 ID와 연결
+                });
+            }
+        }
+
+        // 5. 이미지가 포함된 완성된 포스트를 다시 조회해서 반환합니다.
         return newPost;
     }
 

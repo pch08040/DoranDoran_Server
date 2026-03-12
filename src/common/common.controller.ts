@@ -9,7 +9,7 @@ export class CommonController {
 
   @Post('image')
   @UseInterceptors(FileInterceptor('image'))
-  postImage(
+  seletedImage(
     @UploadedFile() file: Express.Multer.File,
   ) {
     return {

@@ -17,12 +17,8 @@ export class PostsModel extends BaseModel {
         message: stringValidationMessage,
     })
     content: string;
-
-    @Column({
-        nullable: true
-    })
     
     // 게시물 사진
-        @OneToMany(()=> ImageModel, (image) => image.post)
-        images: ImageModel[];
+    @OneToMany(() => ImageModel, (image) => image.post)
+    images: ImageModel[];
 }

@@ -86,6 +86,8 @@ export class UsersModel extends BaseModel {
                 type: ImageModelType.USER_IMAGE,
             }];
         }
+
+        return value;
     })
     images: ImageModel[];
     

@@ -25,6 +25,16 @@ export class UsersService {
         }
     }
 
+    async getUserById(userId: number) {
+        const user = await this.userRepository.findOne({
+            where: {
+                id: userId,
+            }
+        });
+
+        return user;
+    }
+
     // 데이터베이스에 유저가 이미 있는지 조회
     async getUserByPhoneNumber(phoneNumber: string) {
         // findOne: 조건에 맞는 데이터 1개만 찾기
@@ -59,7 +69,7 @@ export class UsersService {
             userData[field] !== undefined && userData[field] !== null && userData[field] !== ''
         );
 
-        if(!isAllFieldsPresent){
+        if (!isAllFieldsPresent) {
             throw new BadRequestException('가입 완료를 위해 모든 정보를 입력해주세요!')
         }
 

@@ -6,8 +6,6 @@ import { ACCESS_TOKEN, ENV_JWT_SECRET_KEY, REFRESH_TOKEN } from 'src/common/cons
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { UsersService } from 'src/users/users.service';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
 import { UpdateProfileDto } from 'src/users/dto/update-profile.dto';
 import { ImageModelType } from 'src/common/entity/image.entity';
 import { CommonService } from 'src/common/common.service';
@@ -210,9 +208,12 @@ export class AuthService {
     //   isProfileCompleted: true로 바꾼뒤 앱의 초기 "친구찾기" 화면으로 보냄(뒤로가기를 눌러도 기존 화면들은 스택에서 지워둠)
     async completedSaveProfile(userId: number, userData: UpdateProfileDto) {
         const { images, ...userRest } = userData;
-        const newUser = await this.usersService.updateProfile(userId, userRest);
+        await this.usersService.updateProfile(userId, userRest);
 
         if(images && images.length > 0){
+            await this.commonService.delteUserImages(userId);
+
+            // 새 이미지들을 옮김
             for(let i = 0; i<images.length; i++){
                 await this.commonService.createImages({
                     fileName: images[i],
@@ -223,7 +224,9 @@ export class AuthService {
             }
         }
 
-        return newUser
+        await this.usersService.updateProfile(userId, {isProfileCompleted: true});
+
+        return this.usersService.getUserById(userId);
     }
 }
 
