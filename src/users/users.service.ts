@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { GenderEnum } from './const/gender.const';
 import { CommonService } from 'src/common/common.service';
 import { PaginateUserDto } from './dto/paginate-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -16,7 +17,10 @@ export class UsersService {
 
     async getAllUsers() {
         const users = await this.userRepository.find({
-            // relations: ['posts'],
+            where:{
+                isProfileCompleted: true,
+            },
+            relations: ['images'],
         });
 
         return {
@@ -29,7 +33,8 @@ export class UsersService {
         const user = await this.userRepository.findOne({
             where: {
                 id: userId,
-            }
+            },
+            relations: ['images']
         });
 
         return user;
@@ -52,7 +57,7 @@ export class UsersService {
         return await this.userRepository.save(newUser);
     }
 
-    async updateProfile(userId: number, userData: Partial<UsersModel>) {
+    async updateProfile(userId: number, userData: UpdateProfileDto) {
         // 전화번호로 임시 유저를 찾음
         const existingUser = await this.userRepository.findOne({
             where: { id: userId }
@@ -65,11 +70,13 @@ export class UsersService {
         // 필수 유저 정보 확인
         const requiredFields = ['firstName', 'gender', 'age', 'area'];
 
+        // 각 필수 필드를 돌면서 모든 데이터가 있는지 확인 
         const isAllFieldsPresent = requiredFields.every(field =>
             userData[field] !== undefined && userData[field] !== null && userData[field] !== ''
         );
 
         if (!isAllFieldsPresent) {
+            console.log(`가입완료를 위한 데이터 ${requiredFields}`)
             throw new BadRequestException('가입 완료를 위해 모든 정보를 입력해주세요!')
         }
 
@@ -110,7 +117,9 @@ export class UsersService {
         return this.commonService.paginate(
             dto,
             this.userRepository,
-            {},
+            {
+                relations: ['images'],
+            },
             'users',
         )
     }
