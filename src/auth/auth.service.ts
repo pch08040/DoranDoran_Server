@@ -207,17 +207,17 @@ export class AuthService {
     //   서버에선 가입완료에 필요한 필수 유저 정보를 받은 뒤 프로필을 DB에 저장하고
     //   isProfileCompleted: true로 바꾼뒤 앱의 초기 "친구찾기" 화면으로 보냄(뒤로가기를 눌러도 기존 화면들은 스택에서 지워둠)
     async completedSaveProfile(userId: number, userData: UpdateProfileDto) {
-        console.log('들어온 데이터:', userData);
-        const { images, ...userRest } = userData;
+        // console.log('들어온 데이터:', userData);
+        const { profileImages, ...userRest } = userData;
         await this.usersService.updateProfile(userId, userRest);
 
-        if(images && images.length > 0){
+        if(profileImages && profileImages.length > 0){
             await this.commonService.delteUserImages(userId);
 
             // 새 이미지들을 옮김
-            for(let i = 0; i<images.length; i++){
+            for(let i = 0; i<profileImages.length; i++){
                 await this.commonService.createImages({
-                    fileName: images[i],
+                    fileName: profileImages[i],
                     type: ImageModelType.USER_IMAGE,
                     order: i,
                     userId: userId,

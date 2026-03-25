@@ -321,7 +321,7 @@ export class CommonService {
         // 1. DB에 이미지 정보 저장
         const newImage = await this.imageRepository.save({
             path: file.filename,
-            type: ImageModelType.USER_IMAGE,
+            type: ImageModelType.TEMP_IMAGE,
             user: {id: userId},
         });
 
@@ -353,7 +353,6 @@ export class CommonService {
     }
 
     async deleteImageById(imageId: number, userId: number) {
-        try {
             // 1. DB에서 해당 이미지 정보를 가져옵니다.
             const image = await this.imageRepository.findOne({
                 where: { id: imageId },
@@ -369,8 +368,17 @@ export class CommonService {
             }
 
             // 2. 파일 경로 설정 (타입에 따라 분기)
-            const rootPath = image.type === ImageModelType.USER_IMAGE
-                ? USERS_IMAGE_PATH : POST_IMAGE_PATH;
+            let rootPath: string;
+
+            if(image.type === ImageModelType.USER_IMAGE){
+                rootPath = USERS_IMAGE_PATH;
+            }else if(image.type === ImageModelType.POST_IMAGE){
+                rootPath = POST_IMAGE_PATH;
+            }else if(image.type === ImageModelType.TEMP_IMAGE){
+                rootPath = TEMP_FOLDER_PATH;
+            }else {
+                throw new BadRequestException('알 수 없는 이미지 타입입니다.');
+            }
 
             const filePath = join(rootPath, image.path);
 
@@ -379,6 +387,9 @@ export class CommonService {
                 try {
                     if (existsSync(filePath)) {
                         await promises.unlink(filePath);
+                        console.log(`[파일 삭제 성공] 경로: ${filePath}`);
+                    }else{
+                        console.log(`[파일 없음] : ${filePath}`);
                     }
                 } catch (e) {
                     // 파일이 이미 없거나 삭제 실패해도 로그만 남기고 진행(DB 적합성이 더 중요)
@@ -388,10 +399,7 @@ export class CommonService {
 
             await this.imageRepository.delete(imageId);
 
-            return console.log(`해당 이미지 삭제: ${imageId}`);
-        } catch (e) {
-            console.log(`임시 폴더에서 이미지 삭제 실패 : ${e}`);
-        }
+            return imageId;
     }
 
     // 오래된 이미지 파일 삭제

@@ -8,6 +8,7 @@ import { UsersModel } from "src/users/entities/users.entity";
 export enum ImageModelType {
     POST_IMAGE,
     USER_IMAGE,
+    TEMP_IMAGE,
 }
 
 @Entity()
@@ -19,11 +20,13 @@ export class ImageModel extends BaseModel {
             return `/public/posts/${value}`;
         } else if (obj.type === ImageModelType.USER_IMAGE) {
             return `/public/users/${value}`;
+        }else if(obj.type === ImageModelType.TEMP_IMAGE) {
+            return `/public/temp/${value}`;
         }
         return value;
     })
     path: string;
-    
+
     @Column({ default: 0 })
     @IsInt()
     @IsOptional()

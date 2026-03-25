@@ -56,7 +56,7 @@ export class AuthController {
   // 임시유저 프로필 설정까지 완료
   @Post('completedSaveProfile')
   // 토큰이 발급된 임시 유저만 프로필 설정을 완료할 수 있음
-  @UseGuards(AccessTokenGuard)
+  // @UseGuards(AccessTokenGuard)
   completedSaveProfile(
     @User() user: UsersModel,
     @Body() userData: UpdateProfileDto) {

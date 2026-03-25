@@ -18,7 +18,11 @@ export class UpdateProfileDto {
   @IsEnum(GenderEnum)
   gender: GenderEnum;
 
+  @IsString()
+  @IsNotEmpty()
+  bio: string;
+
   @IsString({each: true})
   @IsOptional()
-  images?: string[] = [];
+  profileImages?: string[] = [];
 }
