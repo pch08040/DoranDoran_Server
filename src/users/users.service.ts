@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { DomainException } from 'src/common/exception/domain.exception';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UsersModel } from './entities/users.entity';
 import { Repository } from 'typeorm';
@@ -64,7 +65,7 @@ export class UsersService {
         });
         // 유저 나머지 정보를 받고 넣으려는데 임시유저 정보가 서버에 없다고 주장하면
         if (!existingUser) {
-            throw new NotFoundException('인증된 정보를 찾을 수 없습니다. 다시 인증해주세요.')
+            throw new DomainException('USER_NOT_FOUND');
         }
 
         // 필수 유저 정보 확인
@@ -76,8 +77,7 @@ export class UsersService {
         );
 
         if (!isAllFieldsPresent) {
-            console.log(`가입완료를 위한 데이터 ${requiredFields}`)
-            throw new BadRequestException('가입 완료를 위해 모든 정보를 입력해주세요!')
+            throw new DomainException('PROFILE_INCOMPLETE');
         }
 
         const updateUser = Object.assign(existingUser, {
@@ -104,7 +104,10 @@ export class UsersService {
                 area: i % 2 === 0 ? '서울' : '경기',
                 gender: i % 2 === 0 ? GenderEnum.MALE : GenderEnum.FEMALE,
                 isProfileCompleted: true, // 홈 화면에 보여야 하므로 true
-                profileImages: ['/img/basicProfile.png'],
+                // profileImages 라는 컬럼은 UsersModel에 존재하지 않는다.
+                // (TypeORM이 조용히 무시해서 그동안 아무 일도 일어나지 않았음)
+                // 프로필 사진은 ImageModel 관계로 따로 저장되며,
+                // 사진이 없으면 UsersModel의 @Transform이 기본 프로필을 대신 내려준다.
             });
         }
         return { message: '30명의 더미 유저가 생성되었습니다.' };

@@ -1,9 +1,20 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { AuthService } from "../auth.service";
+import { DomainException } from "src/common/exception/domain.exception";
 
 /**
+ * ⚠️ 현재 **아무 데서도 쓰이지 않는다.** (2026-08-17 확인)
+ *
+ * 이메일+비밀번호 로그인을 전제로 만든 가드인데,
+ * 도란도란은 비밀번호가 없고 전화번호 인증만 쓴다.
+ * 아래 주석에 나오는 authenticateWithEmailAndPassword 는 존재하지도 않는 함수다.
+ *
+ * 지우지 않고 남겨둔 이유는 이 저장소가 git 으로 관리되고 있지 않아
+ * 되돌릴 방법이 없기 때문이다. git 을 붙인 뒤 삭제할 것.
+ *
+ * ---
  * 구현할 기능
- * 
+ *
  * 1) 요청객체 (request)를 불러오고
  *    authorization header로부터 토큰을 가져온다.
  * 2) authService.extractTokenFromHeader를 이용해서
@@ -27,7 +38,7 @@ export class BasicTokenGuard implements CanActivate{
         const rawToken = req.headers['authorization'];
 
         if(!rawToken){
-            throw new UnauthorizedException('토큰이 없습니다!');
+            throw new DomainException('AUTH_TOKEN_MISSING');
         }
 
         // 토큰을 받아 구분한 뒤 token을 리턴

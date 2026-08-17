@@ -9,6 +9,8 @@ import { RolesEnum } from "../const/roles.const";
 import { GenderEnum } from "../const/gender.const";
 import { PostsModel } from "src/posts/entity/posts.entity";
 import { ImageModel, ImageModelType } from "src/common/entity/image.entity";
+import { ENV_GCS_BUCKET_KEY } from "src/common/const/env-keys.const";
+import { DEFAULT_PROFILE_OBJECT } from "src/common/const/path.const";
 
 @Entity()
 export class UsersModel extends BaseModel {
@@ -77,12 +79,12 @@ export class UsersModel extends BaseModel {
     bio?: string;
 
     // 프로필 사진
-    @OneToMany(()=> ImageModel, (image) => image.user)
-    // 이미지가 없다면
-    @Transform(({value}) => {
-        if(!value || value.length === 0) {
+    @OneToMany(() => ImageModel, (image) => image.user)
+    // 사진을 한 장도 등록하지 않았다면 기본 프로필을 대신 내려준다.
+    @Transform(({ value }) => {
+        if (!value || value.length === 0) {
             return [{
-                path: '/public/users/basicProfile.png',
+                path: `https://storage.googleapis.com/${process.env[ENV_GCS_BUCKET_KEY]}/${DEFAULT_PROFILE_OBJECT}`,
                 type: ImageModelType.USER_IMAGE,
             }];
         }
