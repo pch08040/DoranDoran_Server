@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { DomainException } from './exception/domain.exception';
 import { BasePaginationDto } from './dto/base-pagination.dto';
 import { FindManyOptions, FindOptionsOrder, FindOptionsWhere, Repository } from 'typeorm';
 import { BaseModel } from './entity/base.entity';
@@ -6,11 +7,9 @@ import { FILTER_MAPPER } from './const/filter-mapper.const';
 import { ConfigService } from '@nestjs/config';
 import { ENV_HOST_KEY, ENV_PORT_KEY, ENV_PROTOCOL_KEY } from './const/env-keys.const';
 import { ImageModel, ImageModelType } from './entity/image.entity';
-import { POST_IMAGE_PATH, PUBLIC_FOLDER_PATH, TEMP_FOLDER_PATH, USERS_IMAGE_PATH } from './const/path.const';
-import { existsSync, promises, renameSync } from 'fs';
-import { basename, join } from 'path';
+import { DEFAULT_PROFILE_OBJECT } from './const/path.const';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { StorageService } from './storage/storage.service';
 
 @Injectable()
 export class CommonService {
@@ -18,6 +17,8 @@ export class CommonService {
         @InjectRepository(ImageModel)
         private readonly imageRepository: Repository<ImageModel>,
         private readonly configService: ConfigService,
+        // 실제 파일을 창고(GCS)에 넣고 빼는 일을 담당
+        private readonly storageService: StorageService,
     ) { }
 
     // <페이징 기능 공통 로직>
@@ -270,7 +271,40 @@ export class CommonService {
     }
 
 
-    // <이미지 DB에 업로드하는 로직>
+    // ─────────────────────────────────────────────────────────────
+    // 이미지 관련 로직
+    //
+    // 예전에는 서버 컴퓨터의 public/ 폴더에 파일을 직접 읽고 쓰고 지웠다.
+    // 이제는 StorageService를 통해 Google Cloud Storage(구글 파일 창고)를 다룬다.
+    // 이 클래스는 'DB 기록'을, StorageService는 '실제 파일'을 담당한다.
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * 임시 사진을 창고에 올리고 DB에 기록한다.
+     * 사용자가 프로필 설정 화면에서 사진을 고르는 즉시 호출된다.
+     * (아직 가입 완료 전이라 temp/ 폴더에 둔다)
+     */
+    async createTemporaryImage(file: Express.Multer.File, userId: number) {
+        // 1. 창고의 temp/ 폴더에 업로드 → temp/3f9a-1b2c.png 같은 경로를 돌려받는다
+        const objectName = await this.storageService.uploadToTemp(file);
+
+        // 2. DB에 기록
+        const newImage = await this.imageRepository.save({
+            path: objectName,
+            type: ImageModelType.TEMP_IMAGE,
+            user: { id: userId },
+        });
+
+        return {
+            id: newImage.id,
+            fileName: objectName,
+        };
+    }
+
+    /**
+     * 임시 사진을 최종 위치(users/ 또는 posts/)로 옮기고 DB에 기록한다.
+     * 가입 완료 버튼을 누르는 시점에 호출된다.
+     */
     async createImages(dto: {
         fileName: string;
         type: ImageModelType;
@@ -278,148 +312,82 @@ export class CommonService {
         userId?: number;
         postId?: number;
     }) {
-        // 1. 이미지가 저장될 실제 경로를 결정(유저용 or 포스트용)
-        // /{프로젝트의 위치}/public/users
-        const realPath = dto.type === ImageModelType.USER_IMAGE
-            ? USERS_IMAGE_PATH : POST_IMAGE_PATH;
+        const target = dto.type === ImageModelType.USER_IMAGE ? 'users' : 'posts';
 
-        // 2. 파일을 옮기는 로직 (temp => 실제 저장 폴더)
-        // await this.moveFile(dto.fileName, targetPath);
+        // 창고에는 '이동'이 없어서 복사 후 원본 삭제로 처리된다 (StorageService 안에서)
+        const objectName = await this.storageService.moveFromTemp(dto.fileName, target);
 
-        // 현재 이미지 파일 위치
-        const tempFilePath = join(TEMP_FOLDER_PATH, dto.fileName);
-
-        try {
-            await promises.access(tempFilePath);
-        } catch (e) {
-            throw new BadRequestException('존재하지 않는 파일 입니다.');
-        }
-
-        // 파일이 새로 갈 곳
-        const destPath = join(realPath, dto.fileName);
-
-        try {
-            await promises.rename(tempFilePath, destPath);
-        } catch (e) {
-            throw new InternalServerErrorException('파일 이동 중 에러가 발생했습니다.');
-        }
-
-        // renameSync(tempFilePath, destPath);
+        // 방금 옮긴 파일의 옛 임시 기록이 DB에 남아있다면 정리한다
+        await this.imageRepository.delete({ path: dto.fileName });
 
         return await this.imageRepository.save({
-            path: dto.fileName, // 파일명 (uuid.png)
-            type: dto.type,     // 이미지 타입 (USER_IMAGE 등)
-            order: dto.order,   // 순서 (0, 1, 2)
-            // 관계 설정: id만 담긴 객체를 넘겨주면 TypeORM이 알아서 외래키를 맺어줘.
+            path: objectName,   // 창고 경로 (users/3f9a-1b2c.png)
+            type: dto.type,
+            order: dto.order,   // 프로필 사진 순서 (0, 1, 2)
+            // id만 담긴 객체를 넘기면 TypeORM이 알아서 외래키를 맺어준다
             user: dto.userId ? { id: dto.userId } : undefined,
             post: dto.postId ? { id: dto.postId } : undefined,
-        })
-    }
-
-    // <임시 이미지 DB에 업로드하는 로직>
-    async createTemporaryImage(file: Express.Multer.File, userId: number){
-        // 1. DB에 이미지 정보 저장
-        const newImage = await this.imageRepository.save({
-            path: file.filename,
-            type: ImageModelType.TEMP_IMAGE,
-            user: {id: userId},
         });
-
-        return {
-            id: newImage.id,
-            fileName: file.filename,
-        }
     }
 
-    // 이미지 전체삭제 함수
+    /**
+     * 특정 사용자의 '확정된' 프로필 사진을 전부 지운다.
+     * 프로필 사진을 새로 등록할 때 기존 것을 정리하는 용도다.
+     *
+     * ⚠️ 임시 사진(TEMP_IMAGE)은 절대 건드리면 안 된다.
+     *    가입 완료 처리는 [기존 사진 삭제 → 임시 사진을 최종 위치로 이동] 순서로 도는데,
+     *    여기서 임시 사진까지 지워버리면 바로 다음 단계에서 옮길 파일이 사라진다.
+     *    (로컬 디스크를 쓰던 시절엔 임시 파일이 다른 폴더에 있어서 우연히 안 걸렸다)
+     */
     async delteUserImages(userId: number) {
-        // 1. 해당 유저가 가진 모든 이미지를 DB에서 먼저 찾아옵니다.
         const images = await this.imageRepository.find({
-            where: { user: { id: userId } },
+            where: {
+                user: { id: userId },
+                type: ImageModelType.USER_IMAGE,
+            },
         });
 
-        // 2. 루프를 돌며 실제 파일 시스템에서 삭제합니다.
+        // 창고에서 실제 파일 삭제
         for (const image of images) {
-            // 기본 이미지는 파일 자체를 지우면 안 되므로 체크가 필요할 수 있음
-            if (image.path !== 'basicProfile.png') {
-                const filePath = join(USERS_IMAGE_PATH, image.path);
-                if (existsSync(filePath)) {
-                    await promises.unlink(filePath);
-                }
-            }
+            // 기본 프로필은 모든 사용자가 공유하는 파일이라 절대 지우면 안 된다
+            if (image.path === DEFAULT_PROFILE_OBJECT) continue;
+
+            await this.storageService.delete(image.path);
         }
 
-        await this.imageRepository.delete({ user: { id: userId } });
+        // DB 기록 삭제 (임시 사진 기록은 남겨둔다)
+        await this.imageRepository.delete({
+            user: { id: userId },
+            type: ImageModelType.USER_IMAGE,
+        });
     }
 
+    /** 사진 한 장을 지운다 (프로필 설정 화면에서 '사진 삭제'를 누를 때) */
     async deleteImageById(imageId: number, userId: number) {
-            // 1. DB에서 해당 이미지 정보를 가져옵니다.
-            const image = await this.imageRepository.findOne({
-                where: { id: imageId },
-                relations: ['user']
-            });
+        const image = await this.imageRepository.findOne({
+            where: { id: imageId },
+            relations: ['user'],
+        });
 
-            if (!image) {
-                throw new BadRequestException('존재하지 않는 이미지입니다.');
-            }
-
-            if (image.user && image.user.id !== userId) {
-                throw new ForbiddenException('본인의 사진만 삭제할 수 있습니다.')
-            }
-
-            // 2. 파일 경로 설정 (타입에 따라 분기)
-            let rootPath: string;
-
-            if(image.type === ImageModelType.USER_IMAGE){
-                rootPath = USERS_IMAGE_PATH;
-            }else if(image.type === ImageModelType.POST_IMAGE){
-                rootPath = POST_IMAGE_PATH;
-            }else if(image.type === ImageModelType.TEMP_IMAGE){
-                rootPath = TEMP_FOLDER_PATH;
-            }else {
-                throw new BadRequestException('알 수 없는 이미지 타입입니다.');
-            }
-
-            const filePath = join(rootPath, image.path);
-
-            // 3. 실제 파일 삭제(기본 프로필이 아닐 때만)
-            if (image.path !== 'basicProfile.png') {
-                try {
-                    if (existsSync(filePath)) {
-                        await promises.unlink(filePath);
-                        console.log(`[파일 삭제 성공] 경로: ${filePath}`);
-                    }else{
-                        console.log(`[파일 없음] : ${filePath}`);
-                    }
-                } catch (e) {
-                    // 파일이 이미 없거나 삭제 실패해도 로그만 남기고 진행(DB 적합성이 더 중요)
-                    console.log(`파일 삭제 실패 : ${filePath}`, e);
-                }
-            }
-
-            await this.imageRepository.delete(imageId);
-
-            return imageId;
-    }
-
-    // 오래된 이미지 파일 삭제
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-    async cleanTempFolder() {
-        console.log('-- 임시 폴더 청소 시작--');
-
-        const files = await promises.readdir(TEMP_FOLDER_PATH);
-        const now = Date.now();
-
-        for (const file of files) {
-            const filePath = join(TEMP_FOLDER_PATH, file);
-            const stats = await promises.stat(filePath);
-
-            // 생성된 지 12시간이 지난 파일만 골라서 삭제
-            const hours12InMs = 12 * 60 * 60 * 1000;
-            if (now - stats.mtimeMs > hours12InMs) {
-                await promises.unlink(filePath);
-                console.log(`삭제된 파일: ${file}`);
-            }
+        if (!image) {
+            throw new DomainException('IMAGE_NOT_FOUND');
         }
+
+        // 남의 사진을 지우지 못하게 막는다
+        if (image.user && image.user.id !== userId) {
+            throw new DomainException('IMAGE_FORBIDDEN');
+        }
+
+        if (image.path !== DEFAULT_PROFILE_OBJECT) {
+            await this.storageService.delete(image.path);
+        }
+
+        await this.imageRepository.delete(imageId);
+
+        return imageId;
     }
+
+    // ⚠️ 예전에 있던 cleanTempFolder() Cron은 삭제했다.
+    //    창고(GCS)의 수명주기 규칙이 temp/ 안의 1일 지난 파일을 자동으로 지워준다.
+    //    우리가 관리할 코드가 하나 줄었다.
 }
