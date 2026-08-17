@@ -4,12 +4,9 @@ import { CommonController } from './common.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { extname } from 'path';
 import * as multer from 'multer';
-import { v4 as uuid } from 'uuid';
-import { TEMP_FOLDER_PATH } from './const/path.const';
-import { AppModule } from 'src/app.module';
-import { UsersModule } from 'src/users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ImageModel } from './entity/image.entity';
+import { StorageService } from './storage/storage.service';
 
 @Module({
   imports: [
@@ -38,21 +35,19 @@ import { ImageModel } from './entity/image.entity';
         return cb(null, true);
       },
 
-      storage: multer.diskStorage({
-        destination: function (req, res, cb) {
-          cb(null, TEMP_FOLDER_PATH);
-        },
-        filename: function (req, file, cb) {
-          // 기존 파일이름이 아닌 uuid로 새로 만든 이름으로 저장
-          // 123123-123-123123.png
-          cb(null, `${uuid()}${extname(file.originalname)}`);
-        }
-      })
+      /**
+       * 예전에는 diskStorage를 써서 서버 컴퓨터의 public/temp 폴더에 파일을 바로 저장했다.
+       * 이제는 파일을 창고(GCS)로 보내야 하므로, 디스크에 쓰지 않고
+       * 메모리에 잠깐 들고 있다가 StorageService가 창고로 전달한다.
+       *
+       * (파일명 짓기도 StorageService가 담당한다)
+       */
+      storage: multer.memoryStorage(),
     }),
   ],
   controllers: [CommonController],
-  providers: [CommonService],
+  providers: [CommonService, StorageService],
 
-  exports: [CommonService],
+  exports: [CommonService, StorageService],
 })
 export class CommonModule { }

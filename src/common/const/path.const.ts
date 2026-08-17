@@ -1,49 +1,22 @@
-import { join } from "path";
+/**
+ * Google Cloud Storage(구글 파일 창고) 안에서의 폴더 경로.
+ *
+ * 창고에는 진짜 '폴더'가 없고, 파일 이름 앞에 붙는 글자로 폴더처럼 구분한다.
+ *   temp/3f9a-1b2c.png   ← 'temp/' 부분이 폴더 역할
+ *   users/3f9a-1b2c.png
+ *
+ * 예전에는 서버 컴퓨터의 실제 폴더 경로(/Users/.../public/users)를 썼지만,
+ * 배포하면 컨테이너가 교체될 때마다 그 폴더가 통째로 사라지기 때문에 창고 방식으로 바꿨다.
+ */
 
-// 서버 프로젝트의 루트 폴더
-export const PROJECT_ROOT_PATH = process.cwd();
-// 외부에서 접근 가능한 파일들을 모아둔 폴더 이름
-export const PUBLIC_FOLDER_NAME = 'public';
-// 포스트 이미지들을 저장할 폴더 이름
-export const POSTS_FOLDER_NAME = 'posts';
-// 유저 프로필 이미지들을 저장할 폴더 이름
-export const USERS_FOLDER_NAME = 'users';
-// 임시 폴더 이름
-export const TEMP_FOLDER_NAME = 'temp';
+/** 가입이 아직 확정되지 않은 임시 사진. 1일 뒤 창고의 수명주기 규칙이 자동으로 지운다. */
+export const TEMP_PREFIX = 'temp/';
 
-// 실제 공개폴더의 절대경로
-// /{프로젝트의 위치}/public
-export const PUBLIC_FOLDER_PATH = join(
-    PROJECT_ROOT_PATH,
-    PUBLIC_FOLDER_NAME,
-);
+/** 프로필 사진 */
+export const USERS_PREFIX = 'users/';
 
-// /{프로젝트의 위치}/public/posts
-export const POST_IMAGE_PATH = join(
-    PUBLIC_FOLDER_PATH,
-    POSTS_FOLDER_NAME,
-);
+/** 게시글(와글와글) 사진 */
+export const POSTS_PREFIX = 'posts/';
 
-// /{프로젝트의 위치}/public/users
-export const USERS_IMAGE_PATH = join(
-    PUBLIC_FOLDER_PATH,
-    USERS_FOLDER_NAME,
-);
-
-// /{프로젝트의 위치}/public/temp
-export const TEMP_FOLDER_PATH = join(
-    PUBLIC_FOLDER_PATH,
-    TEMP_FOLDER_NAME,
-);
-
-// /public/posts/000.jpg
-export const POST_PUBLIC_IMAGE_PATH = join(
-    PUBLIC_FOLDER_NAME,
-    POSTS_FOLDER_NAME,
-);
-
-// /public/users/000.jpg
-export const USERS_PUBLIC_IMAGE_PATH = join(
-    PUBLIC_FOLDER_NAME,
-    USERS_FOLDER_NAME,
-);
+/** 사진을 한 장도 등록하지 않은 사용자에게 대신 보여줄 기본 프로필 */
+export const DEFAULT_PROFILE_OBJECT = `${USERS_PREFIX}basicProfile.png`;
