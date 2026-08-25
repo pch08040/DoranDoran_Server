@@ -100,16 +100,16 @@ export class UsersModel extends BaseModel {
     })
     images: ImageModel[];
     
-    // 신고된 횟수
-    @Column({ default: 0 })
-    reportCount: number;
-
-    // 차단된 유저 아이디
-    @Column('simple-array', { nullable: true })
-    @IsString({
-        message: stringValidationMessage,
-    })
-    blockedUserIds: string[];
+    /*
+     * reportCount / blockedUserIds 는 Phase 4 에서 제거했다.
+     *
+     * reportCount(숫자 하나)로는 누가·언제·왜 신고했는지 알 수 없어서
+     * 한 사람이 세 번 신고해도 3회로 세어졌다.
+     * blockedUserIds("3,7,12" 처럼 한 칸에 몰아넣기)로는
+     * "나를 차단한 사람"을 찾을 수 없어 양방향 차단이 불가능했다.
+     *
+     * 지금은 각각 user_report_model / user_block_model 테이블이 담당한다.
+     */
 
     // 게시글
     @OneToMany(() => PostsModel, (post) => post.author)

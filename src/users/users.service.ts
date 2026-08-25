@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { DomainException } from 'src/common/exception/domain.exception';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UsersModel } from './entities/users.entity';
-import { Between, FindOptionsWhere, Not, Repository } from 'typeorm';
+import { Between, FindOptionsWhere, In, Not, Repository } from 'typeorm';
 import { GenderEnum } from './const/gender.const';
 import { CommonService } from 'src/common/common.service';
 import { PaginateUserDto } from './dto/paginate-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { UserSettingsModel } from './entities/user-settings.entity';
+import { ModerationService } from 'src/moderation/moderation.service';
 
 @Injectable()
 export class UsersService {
@@ -18,6 +19,7 @@ export class UsersService {
         @InjectRepository(UserSettingsModel)
         private readonly settingsRepository: Repository<UserSettingsModel>,
         private readonly commonService: CommonService,
+        private readonly moderationService: ModerationService,
     ) { }
 
     async getAllUsers() {
@@ -53,7 +55,10 @@ export class UsersService {
      *   남의 프로필에 전화번호가 실리면 **익명 서비스의 전제가 깨진다.**
      *   그래서 보여줄 항목만 골라서 담는다.
      */
-    async getUserDetail(userId: number) {
+    async getUserDetail(viewerId: number, userId: number) {
+        // 차단 관계면 프로필을 열 수 없다. (기획서 BE-Block-001)
+        await this.moderationService.assertNotBlocked(viewerId, userId);
+
         const user = await this.userRepository.findOne({
             where: {
                 id: userId,
@@ -230,8 +235,6 @@ export class UsersService {
         const where: FindOptionsWhere<UsersModel> = {
             // 가입을 끝낸 사람만. 전화번호 인증만 하고 만 사람은 프로필이 비어 있다.
             isProfileCompleted: true,
-            // 나 자신은 뺀다.
-            id: Not(userId),
             // 나이 범위. age 가 숫자 컬럼이라 범위 비교가 제대로 동작한다.
             age: Between(settings.minAge, settings.maxAge),
         };
@@ -239,6 +242,18 @@ export class UsersService {
         // null 은 '전체'라는 뜻이므로 조건을 아예 걸지 않는다.
         if (settings.area) where.area = settings.area;
         if (settings.gender) where.gender = settings.gender;
+
+        /**
+         * 차단 관계인 사람을 뺀다. (기획서 BE-Block-001)
+         *
+         * **양쪽을 다 뺀다.** 내가 차단한 사람 + 나를 차단한 사람.
+         * 한쪽만 빼면 A가 B를 차단해도 B의 목록에는 A가 남아 말을 걸 수 있다.
+         *
+         * 위의 `id: Not(userId)` 를 덮어쓰지 않도록, 나 자신까지 한 번에 묶어서 넣는다.
+         * (같은 키에 두 번 대입하면 나중 것만 남는다)
+         */
+        const hiddenIds = await this.moderationService.getHiddenUserIds(userId);
+        where.id = Not(In([userId, ...hiddenIds]));
 
         return this.commonService.paginate(
             dto,

@@ -83,11 +83,22 @@ export class UsersController {
    * ⚠️ 이 경로는 **반드시 맨 아래**에 있어야 한다.
    *    ':id' 는 아무 글자나 받아들이므로, 위에 두면
    *    GET /users/me 나 GET /users/recommendations 까지 여기로 빨려 들어온다.
-   *    (NestJS 는 위에서부터 순서대로 맞춰본다)
+   *
+   *    ⚠️ **다른 파일의 주소는 순서로 못 막는다.**
+   *    ModerationController 의 /users/report-reasons 가 실제로 여기에 빨려 들어가
+   *    400 이 났다. 모듈 등록 순서(app.module.ts)에서 UsersModule 이 먼저라서다.
+   *    그래서 app.module.ts 에서 ModerationModule 을 UsersModule 보다 **앞에** 둔다.
+   *
+   *    `:id(\\d+)` 같은 정규식 문법은 쓸 수 없다.
+   *    NestJS 11 이 쓰는 path-to-regexp v8 에서 없어졌고, 서버가 아예 못 뜬다.
    */
   @Get(':id')
-  getUserDetail(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.getUserDetail(id);
+  getUserDetail(
+    @User() user: UsersModel,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    // 보는 사람이 누구인지 넘겨야 차단 관계를 확인할 수 있다.
+    return this.usersService.getUserDetail(user.id, id);
   }
 
 

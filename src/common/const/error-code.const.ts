@@ -61,6 +61,24 @@ export const ERROR_CODES = {
         message: '가입 완료를 위해 모든 정보를 입력해주세요.',
     },
 
+    // ── 신고 · 차단 ────────────────────────────────────────────
+    /** 같은 사람을 두 번 신고하려 함 */
+    ALREADY_REPORTED: {
+        status: HttpStatus.CONFLICT,
+        message: '이미 신고한 회원이에요.',
+    },
+    /**
+     * 차단 관계라 볼 수 없음.
+     *
+     * 내가 차단했든 상대가 나를 차단했든 같은 코드를 준다.
+     * 구분해서 알려주면 "저 사람이 나를 차단했구나"를 알게 되어
+     * 오히려 갈등을 키운다.
+     */
+    USER_BLOCKED: {
+        status: HttpStatus.FORBIDDEN,
+        message: '지금은 볼 수 없는 회원이에요.',
+    },
+
     // ── 이미지 ────────────────────────────────────────────────
     IMAGE_NOT_FOUND: {
         status: HttpStatus.NOT_FOUND,
