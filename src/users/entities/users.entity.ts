@@ -129,7 +129,8 @@ export class UsersModel extends BaseModel {
      * updatedAt 을 쓰면 안 되는 이유: 프로필을 고칠 때만 바뀌므로
      * '접속'과는 다른 값이다. 앱을 켜기만 해도 갱신돼야 한다.
      */
-    @Column({ type: 'timestamp', nullable: true })
+    // timestamptz — 시간대를 포함한 절대 시각. base.entity.ts 의 설명 참고.
+    @Column({ type: 'timestamptz', nullable: true })
     lastActiveAt: Date | null;
 
     /**
