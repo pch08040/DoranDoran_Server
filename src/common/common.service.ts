@@ -48,10 +48,6 @@ export class CommonService {
     ) {
         const findOptions = this.composeFindOptions<T>(dto);
 
-        // 🔍 여기를 확인하세요!
-        console.log('Final Where:', findOptions.where); // 👈 이게 { id: LessThan(20) } 인지 확인!
-        console.log('Final Order:', findOptions.order); // 👈 이게 { createdAt: 'ASC' } 인지 확인!
-
         const results = await repository.find({
             ...findOptions,
             ...overrideFindOptions,

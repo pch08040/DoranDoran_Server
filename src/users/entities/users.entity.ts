@@ -1,5 +1,5 @@
 import { Exclude, Transform } from "class-transformer";
-import { IsEmail, IsOptional, IsPhoneNumber, IsString, Length, length } from "class-validator";
+import { IsInt, IsOptional, IsPhoneNumber, IsString } from "class-validator";
 import { BaseModel } from "src/common/entity/base.entity";
 import { emailValidationMessage } from "src/common/validation-message/email-validation.message";
 import { lengthValidationMessage } from "src/common/validation-message/length-validation.message";
@@ -11,6 +11,7 @@ import { PostsModel } from "src/posts/entity/posts.entity";
 import { ImageModel, ImageModelType } from "src/common/entity/image.entity";
 import { ENV_GCS_BUCKET_KEY } from "src/common/const/env-keys.const";
 import { DEFAULT_PROFILE_OBJECT } from "src/common/const/path.const";
+import { UserSettingsModel } from "./user-settings.entity";
 
 @Entity()
 export class UsersModel extends BaseModel {
@@ -50,14 +51,20 @@ export class UsersModel extends BaseModel {
     @IsString()
     gender: GenderEnum;
 
-    // 나이
+    /**
+     * 나이. **숫자여야 한다.**
+     *
+     * 예전에는 문자열이었는데, 그러면 '만날 친구 설정'의 나이 범위 필터가
+     * 사전순으로 비교돼 통째로 잘못 동작한다.
+     *   '5' BETWEEN '19' AND '99'  →  참   ('5' > '1' 이므로)
+     * 즉 19~99살을 고른 사용자에게 5살이 후보로 뜬다.
+     */
     @Column({
+        type: 'int',
         nullable: true,
     })
-    @IsString({
-        message: stringValidationMessage,
-    })
-    age: string;
+    @IsInt({ message: '나이를 확인해주세요.' })
+    age: number;
 
     // 지역
     @Column({
@@ -111,6 +118,30 @@ export class UsersModel extends BaseModel {
     // 프로필 작성 완료 여부
     @Column({ default: false })
     isProfileCompleted: boolean;
+
+    /**
+     * 마지막으로 서비스를 쓴 시각.
+     *
+     * 홈의 친구 목록을 **최신 접속순**으로 정렬하는 데 쓴다. (기획서 BE-Setting-003)
+     * createdAt(가입일)으로 정렬하면 오래된 회원이 영원히 아래에 깔려서
+     * 실제로 활동 중인 사람이 안 보인다.
+     *
+     * updatedAt 을 쓰면 안 되는 이유: 프로필을 고칠 때만 바뀌므로
+     * '접속'과는 다른 값이다. 앱을 켜기만 해도 갱신돼야 한다.
+     */
+    @Column({ type: 'timestamp', nullable: true })
+    lastActiveAt: Date | null;
+
+    /**
+     * 만날 친구 설정. 유저 한 명당 하나만 있다.
+     *
+     * users 안에 컬럼으로 넣지 않고 테이블을 나눈 이유
+     *   설정은 앞으로 계속 늘어난다(알림, 미리보기, 다크모드...).
+     *   그때마다 users 에 컬럼이 붙으면, 유저를 한 명 읽을 때마다
+     *   쓰지도 않는 설정값을 전부 같이 읽게 된다.
+     */
+    @OneToOne(() => UserSettingsModel, (settings) => settings.user)
+    settings: UserSettingsModel;
 
     // 사용자 권한
     @Column({

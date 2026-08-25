@@ -1,5 +1,6 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from "class-validator";
 import { GenderEnum } from "../const/gender.const";
+import { MAX_AGE, MIN_SIGNUP_AGE } from "../const/age.const";
 
 /**
  * 프로필 설정 화면에서 보내오는 값들.
@@ -15,9 +16,12 @@ export class UpdateProfileDto {
   @IsNotEmpty({ message: '이름은 반드시 입력해야 합니다.' })
   firstName: string;
 
-  @IsString({ message: '나이를 확인해주세요.' })
-  @IsNotEmpty({ message: '나이를 입력해주세요.' })
-  age: string;
+  // 나이는 숫자다. 앱이 '20' 처럼 문자열로 보내도
+  // ValidationPipe 의 enableImplicitConversion 이 숫자로 바꿔준다.
+  @IsInt({ message: '나이를 확인해주세요.' })
+  @Min(MIN_SIGNUP_AGE, { message: `만 ${MIN_SIGNUP_AGE}세 이상만 가입할 수 있어요.` })
+  @Max(MAX_AGE, { message: '나이를 확인해주세요.' })
+  age: number;
 
   @IsString({ message: '지역을 확인해주세요.' })
   @IsNotEmpty({ message: '지역을 선택해주세요.' })
