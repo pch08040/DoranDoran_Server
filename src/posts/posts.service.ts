@@ -133,18 +133,32 @@ export class PostsService {
         if (settings.area) author.area = settings.area;
         if (settings.gender) author.gender = settings.gender;
 
-        // 차단 관계인 사람은 뺀다. 내 글은 피드에 보인다(내가 쓴 걸 확인해야 한다).
+        // 차단 관계인 사람은 뺀다.
         if (hiddenIds.length > 0) author.id = Not(In(hiddenIds));
 
+        // 만료 시각이 지난 글은 청소가 돌기 전이라도 숨긴다.
+        const notExpired = MoreThan(this.feedCutoff());
+
+        /**
+         * ⚠️ **내 글은 조건과 상관없이 항상 보여야 한다.** (기획서 FE-Waggle-016)
+         *
+         * 예전에는 이 예외가 없어서, 내가 내 설정 조건에 안 맞으면
+         * **내가 쓴 글이 내 피드에서 사라졌다.**
+         * 실제로 이런 상태였다 —
+         *   내 프로필  18살 · 서울 · 남성
+         *   내 설정    성별 '여성', 나이 19~99
+         * 글은 정상적으로 저장됐는데 화면에 안 떠서 '글이 안 올라간다'로 보였다.
+         *
+         * 배열로 주면 OR 조건이 된다. (조건에 맞는 남의 글) 또는 (내 글)
+         */
         return this.commonService.paginate(
             dto,
             this.postsRepository,
             {
-                where: {
-                    author,
-                    // 만료 시각이 지난 글은 청소가 돌기 전이라도 숨긴다.
-                    createdAt: MoreThan(this.feedCutoff()),
-                },
+                where: [
+                    { author, createdAt: notExpired },
+                    { author: { id: userId }, createdAt: notExpired },
+                ],
                 relations: ['author', 'author.images', 'images'],
                 order: { createdAt: 'DESC' },
             },
