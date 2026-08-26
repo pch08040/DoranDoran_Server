@@ -1,11 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PaginatePostDto } from './dto/paginate-post.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PostsModel } from './entity/posts.entity';
-import { FindOptionsWhere, In, LessThan, MoreThan, Repository } from 'typeorm';
+import { Between, FindOptionsWhere, In, MoreThan, Not, Repository } from 'typeorm';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CommonService } from 'src/common/common.service';
 import { ImageModelType } from 'src/common/entity/image.entity';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { UsersService } from 'src/users/users.service';
+import { ModerationService } from 'src/moderation/moderation.service';
+import { UsersModel } from 'src/users/entities/users.entity';
+import { POST_LIFETIME_MS } from './const/post.const';
 
 @Injectable()
 export class PostsService {
@@ -13,7 +18,11 @@ export class PostsService {
         @InjectRepository(PostsModel)
         private readonly postsRepository: Repository<PostsModel>,
         private readonly commonService: CommonService,
+        private readonly usersService: UsersService,
+        private readonly moderationService: ModerationService,
     ) { }
+
+    private readonly logger = new Logger(PostsService.name);
 
     async paginatePosts(dto: PaginatePostDto) {
         return this.commonService.paginate(
@@ -100,6 +109,80 @@ export class PostsService {
     }
 
     // 랜덤 포스트 더미데이터 생성
+    /**
+     * 와글와글 피드. (기획서 BE-Waggle-001 / FE-Waggle-005)
+     *
+     * 홈의 친구 목록과 **같은 조건**(만날 친구 설정)을 쓴다.
+     * 홈에서 볼 수 없는 사람의 글이 피드에는 뜨면 앞뒤가 안 맞는다.
+     *
+     * 빼는 것
+     *   · 만날 친구 설정(지역·성별·나이)에 안 맞는 사람
+     *   · 차단 관계인 사람 (기획서 BE-Waggle-003 / FE-Waggle-010)
+     *   · 2일이 지난 글 (아래 자동 삭제가 돌기 전이라도 안 보이게)
+     */
+    async paginateFeed(userId: number, dto: PaginatePostDto) {
+        const settings = await this.usersService.getSettings(userId);
+        const hiddenIds = await this.moderationService.getHiddenUserIds(userId);
+
+        const author: FindOptionsWhere<UsersModel> = {
+            isProfileCompleted: true,
+            age: Between(settings.minAge, settings.maxAge),
+        };
+
+        // null 은 '전체'라는 뜻이므로 조건을 걸지 않는다.
+        if (settings.area) author.area = settings.area;
+        if (settings.gender) author.gender = settings.gender;
+
+        // 차단 관계인 사람은 뺀다. 내 글은 피드에 보인다(내가 쓴 걸 확인해야 한다).
+        if (hiddenIds.length > 0) author.id = Not(In(hiddenIds));
+
+        return this.commonService.paginate(
+            dto,
+            this.postsRepository,
+            {
+                where: {
+                    author,
+                    // 만료 시각이 지난 글은 청소가 돌기 전이라도 숨긴다.
+                    createdAt: MoreThan(this.feedCutoff()),
+                },
+                relations: ['author', 'author.images', 'images'],
+                order: { createdAt: 'DESC' },
+            },
+            'posts/feed',
+        );
+    }
+
+    /** 이 시각보다 오래된 글은 안 보여준다 */
+    private feedCutoff() {
+        return new Date(Date.now() - POST_LIFETIME_MS);
+    }
+
+    /**
+     * 2일이 지난 글을 지운다. (기획서: 게시물 2일 뒤 자동삭제)
+     *
+     * 매시 정각에 돈다. 하루 한 번만 돌면 최대 24시간까지 남아 있게 된다.
+     *
+     * ⚠️ 시각 비교라 시간대가 맞아야 한다.
+     *   예전에 시각 컬럼이 timestamp(시간대 없음)였을 때는
+     *   서버(한국)와 DB(세계 표준시)가 9시간 어긋나 있었다.
+     *   그대로 뒀으면 글이 9시간 일찍 또는 늦게 지워졌다.
+     *   지금은 timestamptz 라 안전하다.
+     */
+    @Cron(CronExpression.EVERY_HOUR)
+    async removeExpiredPosts() {
+        const cutoff = this.feedCutoff();
+
+        const result = await this.postsRepository
+            .createQueryBuilder()
+            .delete()
+            .where('"createdAt" < :cutoff', { cutoff })
+            .execute();
+
+        if (result.affected) {
+            this.logger.log(`오래된 게시글 ${result.affected}건 삭제 (기준: ${cutoff.toISOString()})`);
+        }
+    }
+
     async generatePosts(userId: number) {
         for (let i = 0; i < 100; i++) {
             await this.createPost(userId, {
