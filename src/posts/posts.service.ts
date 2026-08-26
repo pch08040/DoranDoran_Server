@@ -30,85 +30,9 @@ export class PostsService {
             this.postsRepository,
             {},
             'posts',
-        )
-        // const where : FindOptionsWhere<PostsModel> = {}
-
-        // if(dto.where__id__less_than){
-        //     where.id = LessThan(dto.where__id__less_than);
-        // }else if(dto.where__id__more_than){
-        //     where.id = MoreThan(dto.where__id__more_than);
-        // }
-
-        // const posts = await this.postsRepository.find({
-        //     where,
-        //     order: {
-        //         createdAt: dto.order__createdAt,
-        //     },
-        //     take: dto.take,
-        //     // relations: ['images'],
-        // });
-
-        // // 해당되는 포스트가 0개 이상이면
-        // // 마지막 포스트를 가져오고
-        // // 아니면 null을 반환한다.
-        // const lastItem = posts.length > 0 && posts.length === dto.take ? posts[posts.length - 1] : null;
-
-        // // .env값 가져오기
-        // const protocol = this.configService.get<string>(ENV_PROTOCOL_KEY);
-        // const host = this.configService.get<string>(ENV_HOST_KEY);
-        // const port = this.configService.get<string>(ENV_PORT_KEY);
-
-        // // 마지막 데이터가 존재하면 URL객체 생성
-        // const nextUrl = lastItem && new URL(`${protocol}://${host}:${port}/posts`);
-
-        // if (nextUrl) {
-        //     /**
-        //      * dto의 키값들을 루핑하면서
-        //      * 키값에 해당되는 벨류가 존재하면
-        //      * param에 그대로 붙여넣는다.
-        //      * 
-        //      * 단, where__id_more_than 값만 lastItem의 마지막 값으로 넣어준다.
-        //      */
-        //     for (const key of Object.keys(dto)) {
-        //         if (dto[key]) {
-        //             if (key !== 'where__id__more_than' && key !== 'where__id__less_than') {
-        //                 nextUrl.searchParams.append(key, dto[key]);
-        //             }
-        //         }
-        //     }
-        //     let key = '';
-
-        //     if(dto.order__createdAt === 'ASC'){
-        //         key = 'where__id__more_than';
-        //     }else{
-        //         key = 'where__id__less_than';
-        //     }
-
-        //     nextUrl.searchParams.append(key, lastItem.id.toString());
-        // }
-
-        // /**
-        // * Response
-        // * 
-        // * data: Data[],
-        // * cursor: {
-        // *  after: 마지막 Data의 ID
-        // * },
-        // * count: 응답한 데이터의 갯수
-        // * next: 다음 요청을 할때 사용할 URL
-        // */
-
-        // return {
-        //     data: posts,
-        //     cursor: {
-        //         after: lastItem?.id ?? null
-        //     },
-        //     count: posts.length,
-        //     next: nextUrl?.toString() ?? null,
-        // }
+        );
     }
 
-    // 랜덤 포스트 더미데이터 생성
     /**
      * 와글와글 피드. (기획서 BE-Waggle-001 / FE-Waggle-005)
      *
@@ -208,17 +132,6 @@ export class PostsService {
 
     // 포스트 생성
     async createPost(authorId: number, postDto: CreatePostDto) {
-        // const post = this.postsRepository.create({
-        //     author: {
-        //         id: authorId,
-        //     },
-        //     ...postDto,
-        // });
-
-        // const newPost = await this.postsRepository.save(post);
-
-        // return newPost;
-
         // 1. DTO에서 이미지 파일명 배열과 나머지(content 등)를 분리합니다.
         const { images, ...postRest } = postDto;
 

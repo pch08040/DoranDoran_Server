@@ -10,12 +10,6 @@ import { DevOnlyGuard } from 'src/common/guard/dev-only.guard';
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
-  // @Get()
-  // @IsPublic()
-  // getUsers() {
-  //   return this.usersService.getAllUsers();
-  // }
-
   @Get('me')
   getMe(@User() user: UsersModel) {
     // 가드(토큰 검사기)가 넣어주는 user에는 프로필 사진(images)이 들어있지 않다.
@@ -100,6 +94,4 @@ export class UsersController {
     // 보는 사람이 누구인지 넘겨야 차단 관계를 확인할 수 있다.
     return this.usersService.getUserDetail(user.id, id);
   }
-
-
 }

@@ -167,19 +167,4 @@ export class ModerationService {
             throw new DomainException('USER_BLOCKED');
         }
     }
-
-    /** 여러 명 중 차단 관계인 사람이 있는지 한 번에 확인 (목록에서 쓴다) */
-    async filterHidden(userId: number, candidateIds: number[]) {
-        if (candidateIds.length === 0) return [];
-
-        const blocks = await this.blockRepository.find({
-            where: [
-                { blocker: { id: userId }, blocked: { id: In(candidateIds) } },
-                { blocked: { id: userId }, blocker: { id: In(candidateIds) } },
-            ],
-            relations: ['blocker', 'blocked'],
-        });
-
-        return blocks.map((b) => (b.blocker.id === userId ? b.blocked.id : b.blocker.id));
-    }
 }

@@ -22,20 +22,6 @@ export class UsersService {
         private readonly moderationService: ModerationService,
     ) { }
 
-    async getAllUsers() {
-        const users = await this.userRepository.find({
-            where:{
-                isProfileCompleted: true,
-            },
-            relations: ['images'],
-        });
-
-        return {
-            data: users,
-            count: users.length,
-        }
-    }
-
     async getUserById(userId: number) {
         const user = await this.userRepository.findOne({
             where: {

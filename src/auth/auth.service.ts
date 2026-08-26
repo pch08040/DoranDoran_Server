@@ -253,7 +253,6 @@ export class AuthService {
     //   서버에선 가입완료에 필요한 필수 유저 정보를 받은 뒤 프로필을 DB에 저장하고
     //   isProfileCompleted: true로 바꾼뒤 앱의 초기 "친구찾기" 화면으로 보냄(뒤로가기를 눌러도 기존 화면들은 스택에서 지워둠)
     async completeProfile(userId: number, userData: UpdateProfileDto) {
-        // console.log('들어온 데이터:', userData);
         const { profileImages, ...userRest } = userData;
         await this.usersService.updateProfile(userId, userRest);
 

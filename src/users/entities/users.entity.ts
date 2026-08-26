@@ -4,7 +4,7 @@ import { BaseModel } from "src/common/entity/base.entity";
 import { emailValidationMessage } from "src/common/validation-message/email-validation.message";
 import { lengthValidationMessage } from "src/common/validation-message/length-validation.message";
 import { stringValidationMessage } from "src/common/validation-message/string-validation.message";
-import { Column, Entity, OneToMany, OneToOne } from "typeorm";
+import { Column, Entity, Index, OneToMany, OneToOne } from "typeorm";
 import { RolesEnum } from "../const/roles.const";
 import { GenderEnum } from "../const/gender.const";
 import { PostsModel } from "src/posts/entity/posts.entity";
@@ -14,6 +14,20 @@ import { DEFAULT_PROFILE_OBJECT } from "src/common/const/path.const";
 import { UserSettingsModel } from "./user-settings.entity";
 
 @Entity()
+/**
+ * 친구 목록·피드가 이 네 칸으로 사람을 거른다.
+ *   isProfileCompleted → area → gender → age
+ *
+ * 인덱스(찾기를 빠르게 해주는 색인)가 없으면 회원 수만큼 전부 훑는다.
+ * 지금은 몇십 명이라 티가 안 나지만, 수만 명이 되면 홈 화면이 눈에 띄게 느려진다.
+ *
+ * 순서가 중요하다. 앞에 오는 칸일수록 후보를 많이 줄여야 효율이 좋다.
+ *   isProfileCompleted 는 가입 완료자만 남기고(대부분 true 라 효과는 적지만 항상 걸림),
+ *   area·gender 가 실제로 후보를 크게 줄인다.
+ */
+@Index(['isProfileCompleted', 'area', 'gender', 'age'])
+// 최신 접속순 정렬용. 정렬 기준 칸에도 인덱스가 있어야 줄 세우기가 빨라진다.
+@Index(['lastActiveAt'])
 export class UsersModel extends BaseModel {
 
     // 핸드폰 번호
