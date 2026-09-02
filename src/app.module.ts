@@ -12,6 +12,7 @@ import { validateEnv } from './config/env.validation';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PostsModule } from './posts/posts.module';
 import { ModerationModule } from './moderation/moderation.module';
+import { ChatModule } from './chat/chat.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
 import { AccessTokenGuard } from './auth/guard/bearer-token.guard';
@@ -65,6 +66,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ModerationModule,
     UsersModule,
     PostsModule,
+    ChatModule,
     // DB 설정은 src/config/typeorm.config.ts 한 곳에서 관리한다.
     // 마이그레이션 CLI도 같은 파일을 쓰므로 앱과 CLI의 설정이 어긋날 일이 없다.
     // (synchronize는 그 파일에서 false로 고정되어 있다)

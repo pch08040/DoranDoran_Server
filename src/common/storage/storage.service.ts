@@ -5,7 +5,7 @@ import { Bucket, Storage } from '@google-cloud/storage';
 import { extname } from 'path';
 import { v4 as uuid } from 'uuid';
 import { ENV_GCS_BUCKET_KEY } from '../const/env-keys.const';
-import { POSTS_PREFIX, TEMP_PREFIX, USERS_PREFIX } from '../const/path.const';
+import { CHATS_PREFIX, POSTS_PREFIX, TEMP_PREFIX, USERS_PREFIX } from '../const/path.const';
 
 /**
  * 사진 파일을 Google Cloud Storage(구글의 파일 창고)에 넣고 빼는 일만 담당한다.
@@ -70,9 +70,18 @@ export class StorageService {
      */
     async moveFromTemp(
         tempObjectName: string,
-        target: 'users' | 'posts',
+        target: 'users' | 'posts' | 'chats',
     ): Promise<string> {
-        const prefix = target === 'users' ? USERS_PREFIX : POSTS_PREFIX;
+        // 'chats' 는 Phase 6(이야기)에서 추가됐다.
+        // if/else 사슬 대신 표로 둔 이유 — 폴더가 하나 늘 때마다 조건문이 길어지고,
+        // 새 값을 빠뜨려도 컴파일이 통과해 조용히 posts/ 로 들어가버린다.
+        // Record<유니온, string> 이면 값을 빠뜨렸을 때 컴파일이 막아준다.
+        const prefixByTarget: Record<typeof target, string> = {
+            users: USERS_PREFIX,
+            posts: POSTS_PREFIX,
+            chats: CHATS_PREFIX,
+        };
+        const prefix = prefixByTarget[target];
         // temp/3f9a.png → 3f9a.png 만 떼어내서 새 폴더에 붙인다
         const fileName = tempObjectName.replace(TEMP_PREFIX, '');
         const destName = `${prefix}${fileName}`;

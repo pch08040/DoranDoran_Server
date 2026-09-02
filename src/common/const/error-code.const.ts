@@ -79,6 +79,31 @@ export const ERROR_CODES = {
         message: '지금은 볼 수 없는 회원이에요.',
     },
 
+    // ── 이야기 (채팅) ──────────────────────────────────────────
+    /** 없는 방이거나, 내가 속하지 않은 방 */
+    CHAT_ROOM_NOT_FOUND: {
+        status: HttpStatus.NOT_FOUND,
+        message: '대화방을 찾을 수 없어요.',
+    },
+    /**
+     * 내가 이미 나간 방에 글을 쓰려 함.
+     *
+     * 어떤 상황이냐면 — 목록에서 '나가기'를 눌렀는데 채팅방 화면이 아직 떠 있고,
+     * 거기서 메시지를 보내는 경우다. 앱이 이 코드를 받으면 화면을 닫는다.
+     */
+    CHAT_ROOM_LEFT: {
+        status: HttpStatus.FORBIDDEN,
+        message: '이미 나간 대화방이에요.',
+    },
+    /**
+     * 상대가 먼저 나간 방에 글을 쓰려 함. (시안: 대화방_상대방 종료.png)
+     * 그 화면에는 입력창 대신 '대화방 나가기' 버튼만 남는다.
+     */
+    CHAT_PARTNER_LEFT: {
+        status: HttpStatus.FORBIDDEN,
+        message: '상대방이 이야기를 나갔어요.',
+    },
+
     // ── 이미지 ────────────────────────────────────────────────
     IMAGE_NOT_FOUND: {
         status: HttpStatus.NOT_FOUND,

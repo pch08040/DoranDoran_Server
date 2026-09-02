@@ -18,5 +18,8 @@ export const USERS_PREFIX = 'users/';
 /** 게시글(와글와글) 사진 */
 export const POSTS_PREFIX = 'posts/';
 
+/** 이야기(채팅)에서 주고받은 사진 */
+export const CHATS_PREFIX = 'chats/';
+
 /** 사진을 한 장도 등록하지 않은 사용자에게 대신 보여줄 기본 프로필 */
 export const DEFAULT_PROFILE_OBJECT = `${USERS_PREFIX}basicProfile.png`;
